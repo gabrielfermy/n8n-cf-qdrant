@@ -1,0 +1,7 @@
+local-files/
+n8n-data/
+waha813/
+waha822/
+.env
+
+.idea/

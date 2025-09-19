@@ -1,0 +1,25 @@
+# Cloudflare tunnel configuration for n8n-ashvinlabs-win
+
+ingress:
+  # n8n workflow editor
+  - hostname: workflows.ashvinlabs.my.id
+    service: http://n8n:5678
+  
+  # n8n webhooks endpoint  
+  - hostname: hooks.ashvinlabs.my.id
+    service: http://n8n:5678
+  
+  # WAHA 813 (primary WhatsApp instance)
+  - hostname: waha813.ashvinlabs.my.id
+    service: http://waha813:3000
+  
+  # WAHA 822 (backup WhatsApp instance)
+  - hostname: waha822.ashvinlabs.my.id
+    service: http://waha822:3000
+  
+  # Optional: Qdrant dashboard (for debugging - remove in production)
+  - hostname: qdrant.ashvinlabs.my.id
+    service: http://qdrant:6333
+  
+  # Catch-all rule (must be last)
+  - service: http_status:404

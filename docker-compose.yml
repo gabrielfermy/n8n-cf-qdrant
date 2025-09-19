@@ -1,0 +1,185 @@
+name: n8n-ashvinlabs-win
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: always
+    ports:
+      - "127.0.0.1:56780:5678"
+    dns:
+      - 8.8.8.8
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=1
+      - net.ipv6.conf.default.disable_ipv6=1
+    environment:
+      - NODE_OPTIONS=--dns-result-order=ipv4first
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_TRUST_PROXY=true
+      - N8N_HOST=${SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - N8N_RUNNERS_ENABLED=true
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://${WEBHOOK_SUBDOMAIN}.${DOMAIN_NAME}/
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+      - TZ=${GENERIC_TIMEZONE}
+      - N8N_ALLOWED_HOSTNAMES=${SUBDOMAIN}.${DOMAIN_NAME},${WEBHOOK_SUBDOMAIN}.${DOMAIN_NAME},${WAHA_SUBDOMAIN}.${DOMAIN_NAME},${WAHA2_SUBDOMAIN}.${DOMAIN_NAME}
+      - N8N_EDITOR_BASE_URL=https://${SUBDOMAIN}.${DOMAIN_NAME}/
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres_n8n
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=n8n
+      - N8N_PAYLOAD_SIZE_MAX=16777216
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    volumes:
+      - ./n8n-data:/home/node/.n8n
+      - ./local-files:/files
+    networks:
+      - n8n-network
+    depends_on:
+      postgres_n8n:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  waha813:
+    image: devlikeapro/waha
+    container_name: waha813
+    restart: always
+    ports:
+      - "127.0.0.1:30001:3000"
+    environment:
+      - WAHA_API_KEY=waha-api-key
+      - WAHA_BASE_URL=https://${WAHA_SUBDOMAIN}.${DOMAIN_NAME}
+      - WHATSAPP_SWAGGER_USER=admin
+      - WHATSAPP_SWAGGER_PASSWORD=rahasia
+      - WHATSAPP_DASHBOARD_USER=admin
+      - WHATSAPP_DASHBOARD_PASSWORD=rahasia
+      - WHATSAPP_RESTART_ALL_SESSIONS=true
+    volumes:
+      - ./waha813/.sessions:/app/.sessions
+    networks:
+      - n8n-network
+
+  waha822:
+    image: devlikeapro/waha
+    container_name: waha822
+    restart: always
+    ports:
+      - "127.0.0.1:30002:3000"
+    environment:
+      - WAHA_API_KEY=waha2-api-key
+      - WAHA_BASE_URL=https://${WAHA2_SUBDOMAIN}.${DOMAIN_NAME}
+      - WHATSAPP_SWAGGER_ENABLED=false
+      - WHATSAPP_SWAGGER_PASSWORD=rahasia
+      - WHATSAPP_DASHBOARD_USER=admin
+      - WHATSAPP_DASHBOARD_PASSWORD=rahasia
+      - WHATSAPP_RESTART_ALL_SESSIONS=true
+    volumes:
+      - ./waha822/.sessions:/app/.sessions
+    networks:
+      - n8n-network
+
+  postgres_n8n:
+    image: postgres:15
+    container_name: postgres_n8n
+    restart: always
+    environment:
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=n8n
+      - POSTGRES_DB=n8n
+    volumes:
+      - postgres_n8n_data:/var/lib/postgresql/data
+      - ./init-dbs.sh:/docker-entrypoint-initdb.d/init-dbs.sh
+    ports:
+      - "127.0.0.1:54320:5432"
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres_chat:
+    image: postgres:15
+    container_name: postgres_chat
+    restart: always
+    environment:
+      - POSTGRES_USER=chat
+      - POSTGRES_PASSWORD=chat
+      - POSTGRES_DB=chat_memory
+    volumes:
+      - chat_memory_data:/var/lib/postgresql/data
+      - ./init-dbs-chat.sh:/docker-entrypoint-initdb.d/init-dbs.sh
+    ports:
+      - "127.0.0.1:54321:5432"
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat -d chat_memory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - n8n-network
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+  init-qdrant:
+    image: curlimages/curl:latest
+    container_name: init-qdrant
+    depends_on:
+      qdrant:
+        condition: service_started
+    networks:
+      - n8n-network
+    volumes:
+      - ./qdrant-init.sh:/qdrant-init.sh
+    entrypoint: ["sh", "/qdrant-init.sh"]
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: always
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    command: tunnel --no-autoupdate run
+    volumes:
+      - ./windows/cloudflared/config.yml:/home/nonroot/.cloudflared/config.yml
+    networks:
+      - n8n-network
+    depends_on:
+      n8n:
+        condition: service_started
+      waha813:
+        condition: service_started
+      waha822:
+        condition: service_started
+      qdrant:
+        condition: service_started
+
+networks:
+  n8n-network:
+    driver: bridge
+
+volumes:
+  n8n_data:
+  postgres_n8n_data:
+  chat_memory_data:
+  qdrant_data:
