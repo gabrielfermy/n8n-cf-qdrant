@@ -53,13 +53,15 @@ services:
     ports:
       - "127.0.0.1:30001:3000"
     environment:
-      - WAHA_API_KEY=waha-api-key
+      - WAHA_API_KEY=${WAHA_API_KEY}
       - WAHA_BASE_URL=https://${WAHA_SUBDOMAIN}.${DOMAIN_NAME}
+      - WHATSAPP_SWAGGER_ENABLED=false
       - WHATSAPP_SWAGGER_USER=admin
       - WHATSAPP_SWAGGER_PASSWORD=rahasia
       - WHATSAPP_DASHBOARD_USER=admin
       - WHATSAPP_DASHBOARD_PASSWORD=rahasia
       - WHATSAPP_RESTART_ALL_SESSIONS=true
+      - TZ=Asia/Jakarta
     volumes:
       - ./waha813/.sessions:/app/.sessions
     networks:
@@ -72,13 +74,16 @@ services:
     ports:
       - "127.0.0.1:30002:3000"
     environment:
-      - WAHA_API_KEY=waha2-api-key
+      - WAHA_API_KEY=${WAHA_API_KEY}
       - WAHA_BASE_URL=https://${WAHA2_SUBDOMAIN}.${DOMAIN_NAME}
+      - WHATSAPP_SWAGGER_USER=admin
       - WHATSAPP_SWAGGER_ENABLED=false
       - WHATSAPP_SWAGGER_PASSWORD=rahasia
-      - WHATSAPP_DASHBOARD_USER=admin
-      - WHATSAPP_DASHBOARD_PASSWORD=rahasia
-      - WHATSAPP_RESTART_ALL_SESSIONS=true
+      - WAHA_DASHBOARD_USER=admin
+      - WAHA_DASHBOARD_PASSWORD=rahasia
+      - WHATSAPP_RESTART_ALL_SESSIONS=True
+      - TZ=Asia/Jakarta
+
     volumes:
       - ./waha822/.sessions:/app/.sessions
     networks:
@@ -162,6 +167,7 @@ services:
     command: tunnel --no-autoupdate run
     volumes:
       - ./windows/cloudflared/config.yml:/home/nonroot/.cloudflared/config.yml
+      - ./windows/cloudflared/:/home/nonroot/.cloudflared
     networks:
       - n8n-network
     depends_on:

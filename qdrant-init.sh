@@ -45,7 +45,7 @@ create_collection() {
             -H "Content-Type: application/json" \
             -d '{
                 "vectors": {
-                    "size": 1536,
+                    "size": 768,
                     "distance": "Cosine"
                 }
             }')

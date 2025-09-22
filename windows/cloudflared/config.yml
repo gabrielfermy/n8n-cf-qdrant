@@ -20,6 +20,10 @@ ingress:
   # Optional: Qdrant dashboard (for debugging - remove in production)
   - hostname: qdrant.ashvinlabs.my.id
     service: http://qdrant:6333
-  
+
+  # postgres_chat
+  - hostname: postoffice.ashvinlabs.my.id
+    service: http://postgres_chat:5432
+
   # Catch-all rule (must be last)
   - service: http_status:404
